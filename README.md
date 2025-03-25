@@ -1,6 +1,6 @@
 # P2-Looking-for-Group-Synchronization
 
-** Specifications **
+**Specifications**
 
 This programming exercise will assess your understanding of process synchronization.
 Consider the following synchronization problem:
@@ -13,7 +13,7 @@ d) The solution should not result in starvation.
 e) It is assumed that the input values arrived at the same time.
 f) A time value (in seconds) t is randomly selected between t1 and t2. Where t1 represents the fastest clear time of a dungeon instance and t2 is the slowest clear time of a dungeon instance. For ease of testing t2 <= 15.
 
-** Input **
+**Input**
 The program accepts inputs from the user.
 
 n - maximum number of concurrent instances
@@ -28,7 +28,7 @@ t1 - minimum time before an instance is finished
 
 t2 - maximum time before an instance is finished 
 
-** Output **
+**Output**
 
 The output of the program should show the following:
 Current status of all available instances
