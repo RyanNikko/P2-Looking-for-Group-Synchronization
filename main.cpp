@@ -1,3 +1,5 @@
+//Ryan Nicholas A. Taino, S11
+
 #include <iostream>
 #include <thread>
 #include <mutex>
@@ -39,8 +41,8 @@ size_t leftoverDPS = 0;
 bool running = true;
 
 void getUserInput(size_t& t, size_t& h, size_t& d, int& t1, int& t2) {
-    //These snippets aims to validate if the user input is a positive integer.
-    auto readPositiveInteger = [](const string& prompt) -> size_t {
+    //This snippet aims to validate if the user input is a positive integer.
+    auto checkPositiveInt = [](const string& prompt) -> size_t {
         int value;
         while (true) {
             cout << prompt;
@@ -56,7 +58,7 @@ void getUserInput(size_t& t, size_t& h, size_t& d, int& t1, int& t2) {
         };
     
     //Same here for t1.
-    auto readTimeValue = [](const string& prompt) -> int {
+    auto checkTime = [](const string& prompt) -> int {
         int value;
         while (true) {
             cout << prompt;
@@ -71,15 +73,15 @@ void getUserInput(size_t& t, size_t& h, size_t& d, int& t1, int& t2) {
         }
         };
 
-    maxDungeons = readPositiveInteger("Enter max number of parties in the dungeon: ");
-    t = readPositiveInteger("Enter number of tanks: ");
-    h = readPositiveInteger("Enter number of healers: ");
-    d = readPositiveInteger("Enter number of DPS: ");
-    t1 = readTimeValue("Enter fastest clear time (in seconds): ");
+    maxDungeons = checkPositiveInt("Enter max number of parties in the dungeon: ");
+    t = checkPositiveInt("Enter number of tanks: ");
+    h = checkPositiveInt("Enter number of healers: ");
+    d = checkPositiveInt("Enter number of DPS: ");
+    t1 = checkTime("Enter fastest clear time (in seconds): ");
 
     //When asking for t2, it must not exceed 15 and must be greater than t1.
     do {
-        t2 = readTimeValue("Enter slowest clear time (must be greater than minimum and max 15 seconds): ");
+        t2 = checkTime("Enter slowest clear time (must be greater than minimum and max 15 seconds): ");
         if (t2 > 15 || t2 <= t1) {
             cout << "Invalid input! Slowest clear time must be greater than the minimum and cannot exceed 15. Try again." << endl;
         }
@@ -87,13 +89,13 @@ void getUserInput(size_t& t, size_t& h, size_t& d, int& t1, int& t2) {
 }
 
 //Simulates a party going through the dungeon.
-void dungeonRun(size_t roomNumber, int clearTime) {
+void dungeonRun(size_t roomNum, int clearTime) {
     {
         lock_guard<mutex> lock(mtx);
 #ifdef _WIN32
-        moveCursorTo(0, roomNumber);
+        moveCursorTo(0, roomNum);
 #endif
-        cout << "Dungeon Room [" << roomNumber << "]: Active: time to clear " << clearTime << " seconds      " << flush;
+        cout << "Dungeon Room [" << roomNum << "]: Active: time to clear " << clearTime << " seconds      " << flush;
     }
 
     this_thread::sleep_for(chrono::seconds(clearTime));
@@ -101,12 +103,12 @@ void dungeonRun(size_t roomNumber, int clearTime) {
     {
         lock_guard<mutex> lock(mtx);
         activeDungeons--;
-        dungeonSlots[roomNumber - 1] = 0;
-        roomTotalTime[roomNumber - 1] += clearTime;
+        dungeonSlots[roomNum - 1] = 0;
+        roomTotalTime[roomNum - 1] += clearTime;
 #ifdef _WIN32
-        moveCursorTo(0, roomNumber);
+        moveCursorTo(0, roomNum);
 #endif
-        cout << "Dungeon Room [" << roomNumber << "]: Empty                                      " << flush;
+        cout << "Dungeon Room [" << roomNum << "]: Empty                                      " << flush;
 
         if (waitingParties.empty() && activeDungeons == 0) {
             running = false;
@@ -117,7 +119,7 @@ void dungeonRun(size_t roomNumber, int clearTime) {
     cv.notify_one();
 }
 
-void dungeonManager() {
+void dungeonHandler() {
     //Handles party assignments to empty dungeon rooms.
     while (true) {
         unique_lock<mutex> lock(mtx);
@@ -138,10 +140,10 @@ void dungeonManager() {
 #endif
             cout << "Parties waiting in queue: " << partiesWaiting << "     " << flush;
 
-            size_t roomNumber = 0;
+            size_t roomNum = 0;
             for (size_t i = 0; i < maxDungeons; i++) {
                 if (dungeonSlots[i] == 0) {
-                    roomNumber = i + 1;
+                    roomNum = i + 1;
                     dungeonSlots[i] = clearTime;
                     roomPartyCount[i]++;
                     roomTotalTime[i] += clearTime;
@@ -149,7 +151,7 @@ void dungeonManager() {
                 }
             }
 
-            thread(dungeonRun, roomNumber, clearTime).detach();
+            thread(dungeonRun, roomNum, clearTime).detach();
         }
     }
 }
@@ -206,7 +208,7 @@ int main() {
     }
 
     //Begin raid.
-    thread manager(dungeonManager);
+    thread manager(dungeonHandler); 
     manager.join();
 
 //For printing data recorded when dungeon raid was ongoing.
@@ -218,7 +220,7 @@ int main() {
     cout << endl;
     cout << "All parties have cleared their dungeon runs." << endl << endl;
 
-    cout << "=== Dungeon Raid Summary ===" << endl;
+    cout << "Dungeon Post Raid Summary:" << endl;
 
     for (size_t i = 0; i < maxDungeons; i++) {
         cout << "Dungeon Room [" << i + 1 << "] hosted " << roomPartyCount[i] << " parties." << endl;
