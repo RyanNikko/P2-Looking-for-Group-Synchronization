@@ -224,7 +224,7 @@ int main() {
 
     for (size_t i = 0; i < maxDungeons; i++) {
         cout << "Dungeon Room [" << i + 1 << "] hosted " << roomPartyCount[i] << " parties." << endl;
-        cout << "Total time spent in this room: " << roomTotalTime[i] << " seconds" << endl << endl;
+        cout << "Total time spent in this room by all parties: " << roomTotalTime[i] << " seconds" << endl << endl;
     }
 
     cout << "# of players unable to form a valid party:" << endl;
