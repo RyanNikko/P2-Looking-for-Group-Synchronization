@@ -1,2 +1,7 @@
 ﻿  main.cpp
-  P2_LookingforGroupSynchronization.vcxproj -> C:\Users\hp\Desktop\Programming_Projects\P2_LookingforGroupSynchronization\x64\Debug\P2_LookingforGroupSynchronization.exe
+C:\Users\hp\Desktop\Programming_Projects\P2-Looking-for-Group-Synchronization\main.cpp(91,25): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\hp\Desktop\Programming_Projects\P2-Looking-for-Group-Synchronization\main.cpp(104,25): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\hp\Desktop\Programming_Projects\P2-Looking-for-Group-Synchronization\main.cpp(133,41): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\hp\Desktop\Programming_Projects\P2-Looking-for-Group-Synchronization\main.cpp(154,15): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\hp\Desktop\Programming_Projects\P2-Looking-for-Group-Synchronization\main.cpp(201,33): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+  P2_LookingforGroupSynchronization.vcxproj -> C:\Users\hp\Desktop\Programming_Projects\P2-Looking-for-Group-Synchronization\x64\Debug\P2_LookingforGroupSynchronization.exe

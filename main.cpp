@@ -1,51 +1,234 @@
-//Ryan Nicholas A. Taino - S11
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <queue>
+#include <vector>
+#include <condition_variable>
+#include <cstdlib>
+#include <ctime>
+#include <chrono>
+#include <algorithm>
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
 
-#include<iostream>
+#ifdef _WIN32
+void moveCursorTo(int x, int y) {
+    COORD coord;
+    coord.X = x;
+    coord.Y = y;
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+}
+#endif
 
 using namespace std;
 
+mutex mtx;
+condition_variable cv;
+queue<int> waitingParties;
+vector<int> dungeonSlots;
+vector<size_t> roomPartyCount;
+vector<int> roomTotalTime;
+size_t activeDungeons = 0;
+size_t maxDungeons;
+size_t partiesWaiting = 0;
+size_t leftoverTanks = 0;
+size_t leftoverHealers = 0;
+size_t leftoverDPS = 0;
+bool running = true;
+
+void getUserInput(size_t& t, size_t& h, size_t& d, int& t1, int& t2) {
+    //These snippets aims to validate if the user input is a positive integer.
+    auto readPositiveInteger = [](const string& prompt) -> size_t {
+        int value;
+        while (true) {
+            cout << prompt;
+            if (cin >> value && value >= 0) {
+                return static_cast<size_t>(value);
+            }
+            else {
+                cout << "Invalid input! Please enter a positive integer." << endl;
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            }
+        }
+        };
+    
+    //Same here for t1.
+    auto readTimeValue = [](const string& prompt) -> int {
+        int value;
+        while (true) {
+            cout << prompt;
+            if (cin >> value && value > 0) {
+                return value;
+            }
+            else {
+                cout << "Invalid input! Please enter a positive integer." << endl;
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            }
+        }
+        };
+
+    maxDungeons = readPositiveInteger("Enter max number of parties in the dungeon: ");
+    t = readPositiveInteger("Enter number of tanks: ");
+    h = readPositiveInteger("Enter number of healers: ");
+    d = readPositiveInteger("Enter number of DPS: ");
+    t1 = readTimeValue("Enter fastest clear time (in seconds): ");
+
+    //When asking for t2, it must not exceed 15 and must be greater than t1.
+    do {
+        t2 = readTimeValue("Enter slowest clear time (must be greater than minimum and max 15 seconds): ");
+        if (t2 > 15 || t2 <= t1) {
+            cout << "Invalid input! Slowest clear time must be greater than the minimum and cannot exceed 15. Try again." << endl;
+        }
+    } while (t2 > 15 || t2 <= t1);
+}
+
+//Simulates a party going through the dungeon.
+void dungeonRun(size_t roomNumber, int clearTime) {
+    {
+        lock_guard<mutex> lock(mtx);
+#ifdef _WIN32
+        moveCursorTo(0, roomNumber);
+#endif
+        cout << "Dungeon Room [" << roomNumber << "]: Active: time to clear " << clearTime << " seconds      " << flush;
+    }
+
+    this_thread::sleep_for(chrono::seconds(clearTime));
+
+    {
+        lock_guard<mutex> lock(mtx);
+        activeDungeons--;
+        dungeonSlots[roomNumber - 1] = 0;
+        roomTotalTime[roomNumber - 1] += clearTime;
+#ifdef _WIN32
+        moveCursorTo(0, roomNumber);
+#endif
+        cout << "Dungeon Room [" << roomNumber << "]: Empty                                      " << flush;
+
+        if (waitingParties.empty() && activeDungeons == 0) {
+            running = false;
+            cv.notify_all();
+        }
+    }
+
+    cv.notify_one();
+}
+
+void dungeonManager() {
+    //Handles party assignments to empty dungeon rooms.
+    while (true) {
+        unique_lock<mutex> lock(mtx);
+        cv.wait(lock, [] { return (!waitingParties.empty() && activeDungeons < maxDungeons) || !running; });
+
+        if (!running && waitingParties.empty() && activeDungeons == 0) {
+            break;
+        }
+
+        if (!waitingParties.empty() && activeDungeons < maxDungeons) {
+            int clearTime = waitingParties.front();
+            waitingParties.pop();
+            activeDungeons++;
+            partiesWaiting--;
+
+#ifdef _WIN32
+            moveCursorTo(0, maxDungeons + 1);
+#endif
+            cout << "Parties waiting in queue: " << partiesWaiting << "     " << flush;
+
+            size_t roomNumber = 0;
+            for (size_t i = 0; i < maxDungeons; i++) {
+                if (dungeonSlots[i] == 0) {
+                    roomNumber = i + 1;
+                    dungeonSlots[i] = clearTime;
+                    roomPartyCount[i]++;
+                    roomTotalTime[i] += clearTime;
+                    break;
+                }
+            }
+
+            thread(dungeonRun, roomNumber, clearTime).detach();
+        }
+    }
+}
+
 int main() {
-	int n; //maximum number of concurrent instances
-	int t, h, d; //number of tank/healer/dps players in the queue
-	int t1, t2; //minimum/maximum time before an instance is finished
+    //Initialize values. Also set up random seed for t1 and t2.
+    srand(time(0));
+    size_t t, h, d;
+    int t1, t2;
 
-	cout << "Max number of parties within the dungeon: ";
-	cin >> n;
+    //Grab user input.
+    getUserInput(t, h, d, t1, t2);
 
-	cout << endl; 
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
 
-	cout << "How many tank players are in the queue?: ";
-	cin >> t;
+    //Initialize vectors to track dungeon statistics.
+    dungeonSlots.resize(maxDungeons, 0);
+    roomPartyCount.resize(maxDungeons, 0);
+    roomTotalTime.resize(maxDungeons, 0);
 
-	cout << endl; 
+    //Now we form valid parties, assigning each one with a clear time.
+    size_t partiesFormed = 0;
+    while (t >= 1 && h >= 1 && d >= 3) {
+        t--;
+        h--;
+        d -= 3;
+        int clearTime = t1 + rand() % (t2 - t1 + 1);
+        waitingParties.push(clearTime);
+        partiesFormed++;
+    }
 
-	cout << "How many healer players are in the queue?: ";
-	cin >> h; 
+    //Set up leftovers to be printed later and the parties waiting in queue.
+    leftoverTanks = t;
+    leftoverHealers = h;
+    leftoverDPS = d;
+    partiesWaiting = partiesFormed;
 
-	cout << endl; 
-	
-	cout << "How many dps players are in the queue?: ";
-	cin >> d; 
+    //Ends program early should no parties be formed.
+    if (partiesWaiting == 0) {
+        cout << "No valid parties could be formed!!! Raid cancelled..." << endl;
+        return 0;
+    }
 
-	cout << endl; 
+    //Start of display while program is ongoing.
+    cout << "Total valid parties formed: " << partiesWaiting << endl;
+    
+    //Initial display for dungeon rooms/instances.
+    for (size_t i = 1; i <= maxDungeons; i++) {
+        cout << "Dungeon Room [" << i << "]: Empty" << endl;
+    }
 
-	cout << "Minimum time to finish a raid?: ";
-	cin >> t1; 
+    //Begin raid.
+    thread manager(dungeonManager);
+    manager.join();
 
-	cout << endl; 
+//For printing data recorded when dungeon raid was ongoing.
+#ifdef _WIN32
+    moveCursorTo(0, maxDungeons + 2);
+#else
+    cout << endl;
+#endif
+    cout << endl;
+    cout << "All parties have cleared their dungeon runs." << endl << endl;
 
-	cout << "Maximum time to finish a raid?: ";
-	cin >> t2;
+    cout << "=== Dungeon Raid Summary ===" << endl;
 
-	cout << endl; 
+    for (size_t i = 0; i < maxDungeons; i++) {
+        cout << "Dungeon Room [" << i + 1 << "] hosted " << roomPartyCount[i] << " parties." << endl;
+        cout << "Total time spent in this room: " << roomTotalTime[i] << " seconds" << endl << endl;
+    }
 
-	cout << "Parameters: " << endl;
-	cout << "Max # of parties in dungeon: " << n << endl;  
-	cout << "Tanks: " << t << endl;
-	cout << "Healers: " << h << endl;
-	cout << "DPSs: " << d << endl;  
-	cout << "It should take a minimum of " << t1; 
-	cout << " and a maximum of " << t2 << " to finish a raid." << endl;
+    cout << "# of players unable to form a valid party:" << endl;
+    cout << "Tanks: " << leftoverTanks << endl;
+    cout << "Healers: " << leftoverHealers << endl;
+    cout << "DPS: " << leftoverDPS << endl;
 
-	return 0;
+    return 0;
 }
